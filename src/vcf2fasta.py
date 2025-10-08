@@ -4,7 +4,8 @@ import os
 import textwrap
 import argparse
 import pysam
-from Bio import SeqIO
+import random
+import logging
 
 nd16phased = {
     "AA": "0",
@@ -85,6 +86,30 @@ binary = {
     "..": "?"
 }
 
+def setup_logger(debug=False, output_path=None):
+    logger = logging.getLogger("my_parser")
+    logger.setLevel(logging.DEBUG)
+
+    if logger.hasHandlers():
+        logger.handlers.clear()
+
+    # Console handler – show only INFO or higher
+    ch = logging.StreamHandler()
+    ch.setLevel(logging.INFO)
+    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+    ch.setFormatter(formatter)
+    logger.addHandler(ch)
+
+    if debug and output_path:
+        log_file = output_path + ".log"
+        fh = logging.FileHandler(log_file, mode="w")
+        fh.setLevel(logging.DEBUG)
+        fh.setFormatter(formatter)
+        logger.addHandler(fh)
+        logger.debug(f"Debug logging enabled. Writing to file: {log_file}")
+
+    return logger
+
 
 def parse_args():
     parser = argparse.ArgumentParser("Transform a multi-sample VCF file into a Fasta format")
@@ -102,11 +127,11 @@ def parse_args():
                         help="A reference Fasta file to fill in genotypes not present in the VCF",
                         default="none")
     parser.add_argument("--refType", type=str,
-                        choices=["nd16", "nucleotide"],
+                        choices=["nd16", "nucleotide","binary"],
                         help="The sequence type of reference Fasta file. Supports 'nd16' and 'nucleotide' (default).",
                         default="nucleotide")
     parser.add_argument("--debug", type=bool,
-                        help="Debug mode (default is false)",
+                        help="Debug mode (True or False, default is False)",
                         default=False)
     args = parser.parse_args()
     return args
@@ -122,7 +147,7 @@ def vcf2fasta(vcf, fasta, encoding="nd16", ref="none", refType="nucleotide", deb
 
 def write_fasta(names, sequences, file):
     items = [
-        "\n".join([">" + name, textwrap.fill(seq, width=80)])
+        "\n".join([">" + name, seq])
         for name, seq in zip(names, sequences)
     ]
     with open(file, "w") as fasta:
@@ -137,71 +162,129 @@ def parse_vcf(file, encoding):
     return names, sequences
 
 
-def parse_vcf_ref(vcf, fasta, encoding, ref, refType, debug=False):
-    if os.path.exists(ref):
-        print("using ref fasta: %s" % ref)
-        ref_sequence = ""
-        # parse ref fasta
-        with open(ref) as handle:
-            # assumes only one ref sequence in fasta file
-            for record in SeqIO.parse(handle, "fasta"):
-                ref_sequence_raw = record.seq
-        if refType == "nd16":
-            ref_sequence = ref_sequence_raw
-        else :
-            ref_translated = [translate_genome(allele, encoding) for allele in ref_sequence_raw]
-            ref_sequence = "".join(ref_translated)
+def parse_fasta(fasta_path):
+    if not os.path.exists(fasta_path):
+        raise FileNotFoundError(f"Could not find FASTA file: {fasta_path}")
 
-        # parse vcf
-        with pysam.VariantFile(vcf) as vcf:
-            variants = vcf.fetch()
-            samples_map = {}
-            for variant in variants:
-                for sample in variant.samples.itervalues():
-                    base = sample2base(sample, encoding)
-                    sample_name = sample.name
-                    pos = "%s,%d" % (variant.chrom, variant.pos)
-                    if sample_name in samples_map:
-                        sample_sequence_map = samples_map.get(sample_name)
-                        sample_sequence_map[pos] = base
-                    else:
-                        sample_sequence_map = {pos: base}
-                        samples_map[sample_name] = sample_sequence_map
-        if debug:
-            print(samples_map)
-            print([len(samples_map[i]) for i in samples_map])
-        # assume ref sequence is sorted with one-based indexing 1, ..., L
-        # open fasta file
-        writer = open(fasta, "w")
-        for sample_name in samples_map:
-            sequence = list(str(ref_sequence))
-            variants_map = samples_map[sample_name]
-            for variant_pos in variants_map:
-                items = variant_pos.split(",")
-                chrom = items[0]
-                pos = int(items[1]) - 1  # VCF uses one-based index
-                sequence[pos] = variants_map[variant_pos]
-            sequence_str = "".join(sequence)
-            ref_sequence_str = str(ref_sequence)
-            if debug:
-                variant_index = 555  # one-based position of first variant in 1459.vcf file
-                index = variant_index - 1  # zero-based index
-                print("ref at pos %d: \n%s" % (index, ref_sequence[index]))
-                print("%s at pos %d: \n%s" % (sample_name, index, sequence_str[index]))
-                print("ref raw seq: \n%s" % str(ref_sequence_raw)[0:10])
-                print("ref: \n%s" % ref_sequence_str[0:10])
-                print("%s: \n%s" % (sample_name, sequence_str[0:10]))
-            # write sequences line by line
-            writer.write(">" + sample_name)
-            writer.write("\n")
-            writer.write(sequence_str)
-            writer.write("\n")
-        # close fasta file
-        writer.close()
+    ref_dict = {}
+    seq_id = None
+    seq_lines = []
+
+    with open(fasta_path, "r") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            if line.startswith(">"):
+                if seq_id:
+                    seq = "".join(seq_lines)
+                    if seq_id in ref_dict and ref_dict[seq_id] != seq:
+                        raise ValueError(f"Duplicate sequence ID '{seq_id}' with conflicting sequences")
+                    ref_dict[seq_id] = seq
+                # Start new sequence
+                seq_id = line[1:].split()[0]  # take first word as ID
+                seq_lines = []
+            else:
+                seq_lines.append(line)
+
+        # Save the last sequence
+        if seq_id:
+            seq = "".join(seq_lines)
+            if seq_id in ref_dict and ref_dict[seq_id] != seq:
+                raise ValueError(f"Duplicate sequence ID '{seq_id}' with conflicting sequences")
+            ref_dict[seq_id] = seq
+
+    if not ref_dict:
+        raise FileNotFoundError(f"No sequences found in FASTA file: {fasta_path}")
+
+    return ref_dict
+
+
+def translate_fasta(ref_sequence_raw, ref_type, encoding):
+    if ref_type == "nd16":
+        return ref_sequence_raw
     else:
-        # throw exception here
-        print("warning: could not find ref fasta: %s" % ref)
-    print()
+        return "".join(translate_genome(allele, encoding) for allele in ref_sequence_raw)
+
+
+def translate_vcf(vcf_file, encoding):
+    with pysam.VariantFile(vcf_file) as vcf:
+        samples_map = {}
+        for variant in vcf.fetch():
+            chrom = variant.chrom  # store chromosome in pos_key
+            for sample in variant.samples.values():
+                base = sample2base(sample, encoding)
+                sample_name = sample.name
+                pos_key = f"{chrom},{variant.pos}"
+                if sample_name not in samples_map:
+                    samples_map[sample_name] = {}
+                samples_map[sample_name][pos_key] = base
+    return samples_map
+
+
+def parse_vcf_ref(vcf, fasta, encoding, ref, refType, debug=False):
+    ref_dict = parse_fasta(ref)
+
+    translated_ref_dict = {
+        chrom: translate_fasta(seq, refType, encoding)
+        for chrom, seq in ref_dict.items()
+    }
+
+    samples_map = translate_vcf(vcf, encoding)
+
+    # 4. Construct full sequences per sample
+    sample_names = []
+    sample_sequences = []
+
+    for sample_name, variants in samples_map.items():
+        sample_names.append(sample_name)
+
+        full_seq = []
+
+        for chrom, ref_seq in translated_ref_dict.items():
+            seq_list = list(ref_seq)  # convert to mutable list
+
+            # Apply variants for this chromosome
+            for pos_key, base in variants.items():
+                chrom_v, pos = pos_key.split(",")
+                pos = int(pos) - 1  # VCF positions are 1-based
+                if chrom_v != chrom:
+                    continue
+                seq_list[pos] = base
+
+            full_seq.append("".join(seq_list))
+
+        sample_sequences.append("".join(full_seq))
+
+    # 5. Write all samples to FASTA
+    write_fasta(sample_names, sample_sequences, fasta)
+
+    if debug:
+        for sample_name, variants_map in samples_map.items():
+            for variant_pos in variants_map:
+                chrom, pos = variant_pos.split(",")
+                pos = int(pos) - 1
+
+            # Build chromosome sequence for this sample
+            chrom_seq = list(translated_ref_dict[chrom])
+            for variant_pos, base in variants_map.items():
+                chrom_v, pos_v = variant_pos.split(",")
+                pos_v = int(pos_v) - 1
+                if chrom_v == chrom:
+                    chrom_seq[pos_v] = base
+            sequence_str = "".join(chrom_seq)
+
+            # Random position debug
+            random_index = random.randint(0, len(chrom_seq) - 1)
+            vcf_pos = random_index + 1
+            ref_base = translated_ref_dict[chrom][random_index]
+            sample_base = chrom_seq[random_index]
+
+            logger.debug(f"DEBUG SAMPLE for {sample_name}_{chrom}")
+            logger.debug(f"Random position: {vcf_pos} (VCF 1-based) / {random_index} (Python 0-based)")
+            logger.debug(f"Ref base: {ref_base}, var base: {sample_base}")
+            logger.debug(f"Ref seq start: {''.join(translated_ref_dict[chrom][:10])}")
+            logger.debug(f"Sample seq start: {sequence_str[:10]}")
 
 
 def get_sequences(variants, encoding="nd16"):
@@ -249,7 +332,14 @@ def translate_genome(genome, encoding="nd16", phased=True):
 
 if __name__ == "__main__":
     args = parse_args()
+    debug_mode = args.debug
+    logger = setup_logger(debug=debug_mode, output_path=args.fasta)
+    if debug_mode:
+        log_file = args.fasta + ".log"
+        print(f"Debug logging enabled. Writing to file: {log_file}")
+
     vcf2fasta(**vars(args))
+
 # file = "../data/1459.vcf"
 # fasta = file.replace(".vcf", ".fasta")
 # encoding = "nd16"

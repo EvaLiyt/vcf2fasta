@@ -1,0 +1,14 @@
+##fileformat=VCFv4.3
+##FILTER=<ID=PASS,Description="All filters passed">
+##INFO=<ID=NS,Number=1,Type=Integer,Description="Number of Samples With Data">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=AD,Number=.,Type=Integer,Description="Allelic depths for the ref and alt alleles in the order listed">
+##FORMAT=<ID=BI,Number=1,Type=Float,Description="Amplification Bias">
+##FORMAT=<ID=GQ,Number=1,Type=Integer,Description="Genotype Quality">
+##FORMAT=<ID=PL,Number=G,Type=Integer,Description="sequencing noise, amplification artifact, heterozygous SNV and homozygous SNV respectively">
+##contig=<ID=chr1,eta=0.3957790036960765>
+##reference=file:./data/chr1.fna
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	0	1	2	3
+chr1	22	.	G	T	63	.	NS=1	GT:AD:BI:GQ:PL	./.:.:.:.:.	./.:.:.:.:.	./.:.:.:.:.	0/1:2,10:0.63:63:153,91,29,130
+chr1	51	.	A	C	37	.	NS=1	GT:AD:BI:GQ:PL	./.:.:.:.:.	./.:.:.:.:.	./.:.:.:.:.	0/1:9,10:0.63:37:153,96,59,583
+chr1	100	.	A	T	91	.	NS=1	GT:AD:BI:GQ:PL	./.:.:.:.:.	1/1:0,22:0.771:25:335,199,25,0	./.:.:.:.:.	1/1:0,6:0.63:12:91,54,12,0

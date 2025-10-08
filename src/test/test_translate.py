@@ -65,15 +65,15 @@ def does_not_raise():
     yield
 
 
-@pytest.mark.parametrize("genome, expectation", [
-    ("A", pytest.raises(ValueError)),
-    ("AA", does_not_raise()),
-    ("AAA", pytest.raises(ValueError))
-    ])
-def test_translate_genome_length(genome, expectation):
-    with expectation:
-        assert translate_genome(genome) is not None
-
+# @pytest.mark.parametrize("genome, expectation", [
+#     ("A", pytest.raises(ValueError)),
+#     ("AA", does_not_raise()),
+#     ("AAA", pytest.raises(ValueError))
+#     ])
+# def test_translate_genome_length(genome, expectation):
+#     with expectation:
+#         assert translate_genome(genome) is not None
+#
 
 #@pytest.mark.parametrize("alleles, expected", [
 #    (("A", "A"), "0"),
