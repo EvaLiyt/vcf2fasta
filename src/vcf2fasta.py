@@ -232,7 +232,6 @@ def parse_vcf_ref(vcf, fasta, encoding, ref, refType, debug=False):
 
     samples_map = translate_vcf(vcf, encoding)
 
-    # 4. Construct full sequences per sample
     sample_names = []
     sample_sequences = []
 
@@ -256,15 +255,10 @@ def parse_vcf_ref(vcf, fasta, encoding, ref, refType, debug=False):
 
         sample_sequences.append("".join(full_seq))
 
-    # 5. Write all samples to FASTA
     write_fasta(sample_names, sample_sequences, fasta)
 
     if debug:
         for sample_name, variants_map in samples_map.items():
-            for variant_pos in variants_map:
-                chrom, pos = variant_pos.split(",")
-                pos = int(pos) - 1
-
             # Build chromosome sequence for this sample
             chrom_seq = list(translated_ref_dict[chrom])
             for variant_pos, base in variants_map.items():
@@ -277,12 +271,14 @@ def parse_vcf_ref(vcf, fasta, encoding, ref, refType, debug=False):
             # Random position debug
             random_index = random.randint(0, len(chrom_seq) - 1)
             vcf_pos = random_index + 1
+            vcf_key = f"{chrom},{vcf_pos}"
+            vcf_base = variants_map.get(vcf_key)
             ref_base = translated_ref_dict[chrom][random_index]
             sample_base = chrom_seq[random_index]
 
             logger.debug(f"DEBUG SAMPLE for {sample_name}_{chrom}")
             logger.debug(f"Random position: {vcf_pos} (VCF 1-based) / {random_index} (Python 0-based)")
-            logger.debug(f"Ref base: {ref_base}, var base: {sample_base}")
+            logger.debug(f"Ref base: {ref_base}, output seq base: {sample_base}, vcf base: {vcf_base}")
             logger.debug(f"Ref seq start: {''.join(translated_ref_dict[chrom][:10])}")
             logger.debug(f"Sample seq start: {sequence_str[:10]}")
 

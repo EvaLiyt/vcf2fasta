@@ -62,7 +62,7 @@ def test_translate_fasta_nd16():
     assert translate_fasta(raw_seq, "nd16", "nd16") == "05af"
 
 # ------------------------------
-# translate_vcf tests (mock pysam)
+# translate_vcf tests
 # ------------------------------
 def test_translate_vcf():
     # test nd16
@@ -102,17 +102,14 @@ def test_parse_vcf_ref(tmp_path):
     result = subprocess.run(cmd, capture_output=True, text=True)
     assert result.returncode == 0, f"Script failed: {result.stderr}"
 
-    # Check that the output file exists
     assert os.path.exists(out_file)
 
     with open(out_file) as f:
         lines = f.read().splitlines()
 
-    # Check there are exactly 4 sequences
     headers = [line for line in lines if line.startswith(">")]
     assert len(headers) == 4, f"Expected 4 sequences, found {len(headers)}"
 
-    # Check each sequence line after a header has 100 characters
     for i, line in enumerate(lines):
         if line.startswith(">"):
             # Next line should be sequence
