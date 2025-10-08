@@ -87,10 +87,11 @@ def test_translate_vcf():
 # ------------------------------
 # parse_vcf_ref tests
 # ------------------------------
+# test one sequence reference
 def test_parse_vcf_ref(tmp_path):
     fasta_file = "./data/chr1.fna"
     vcf_file = "./data/example.vcf"
-    out_file = tmp_path / "out.fasta"  # write to a temp file
+    out_file = tmp_path / "out.fasta"
 
     cmd = [
         "python3", "../vcf2fasta.py",
@@ -112,6 +113,55 @@ def test_parse_vcf_ref(tmp_path):
 
     for i, line in enumerate(lines):
         if line.startswith(">"):
-            # Next line should be sequence
             seq_line = lines[i + 1]
             assert len(seq_line) == 100, f"Sequence after {line} is {len(seq_line)} chars, expected 100"
+
+# test two sequences reference
+def test_parse_vcf_ref_multiple_ref(tmp_path):
+    fasta_file = "./data/twoSeqRef.fna"
+    vcf_file = "./data/twoSeqExample.vcf"
+    out_file = tmp_path / "output.fasta"
+
+    cmd = [
+        "python3", "../vcf2fasta.py",
+        str(vcf_file),
+        str(out_file),
+        "--ref", str(fasta_file)
+    ]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    assert result.returncode == 0, f"Script failed: {result.stderr}"
+
+    assert os.path.exists(out_file)
+
+    with open(out_file) as f:
+        lines = [line.strip() for line in f if line.strip()]
+
+    headers = [line for line in lines if line.startswith(">")]
+    assert len(headers) == 8, f"Expected 8 sequences, found {len(headers)}"
+
+    for i, line in enumerate(lines):
+        if line.startswith(">"):
+            seq_name = line[1:].split()[0]
+            if i + 1 >= len(lines):
+                raise ValueError(f"No sequence found after header {seq_name}")
+            seq_line = lines[i + 1]
+
+            assert len(seq_line) == 100, f"Sequence after {seq_name} is {len(seq_line)} chars, expected 100"
+
+            parts = seq_name.split("_")
+            if len(parts) >= 2:
+                sample, chrom = parts[0], parts[1]
+            else:
+                raise ValueError(f"Invalid sequence name format: {seq_name}")
+
+            if sample == "0":
+                if chrom == "ch1":
+                    assert seq_line[15] == "?", f"{seq_name}: expected '?' at 15"
+                elif chrom == "ch2":
+                    assert seq_line[21] == "?", f"{seq_name}: expected '?' at 21"
+
+            if sample == "3":
+                if chrom == "ch1":
+                    assert seq_line[50] == "M", f"{seq_name}: expected 'M' at 50"
+                elif chrom == "ch2":
+                    assert seq_line[88] == "f", f"{seq_name}: expected 'f' at 88"

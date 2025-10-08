@@ -232,30 +232,32 @@ def parse_vcf_ref(vcf, fasta, encoding, ref, refType, debug=False):
 
     samples_map = translate_vcf(vcf, encoding)
 
-    sample_names = []
-    sample_sequences = []
+    fasta_entries = []
 
     for sample_name, variants in samples_map.items():
-        sample_names.append(sample_name)
-
-        full_seq = []
-
         for chrom, ref_seq in translated_ref_dict.items():
-            seq_list = list(ref_seq)  # convert to mutable list
+            seq_list = list(ref_seq)
 
             # Apply variants for this chromosome
             for pos_key, base in variants.items():
                 chrom_v, pos = pos_key.split(",")
-                pos = int(pos) - 1  # VCF positions are 1-based
                 if chrom_v != chrom:
                     continue
-                seq_list[pos] = base
+                pos = int(pos) - 1  # VCF positions are 1-based
+                if 0 <= pos < len(seq_list):
+                    seq_list[pos] = base
 
-            full_seq.append("".join(seq_list))
+            final_seq = "".join(seq_list)
+            fasta_entries.append((f"{sample_name}_{chrom}", final_seq))
 
-        sample_sequences.append("".join(full_seq))
+            if debug:
+                logger.debug(f"{sample_name}_{chrom} -> first 10 bases: {final_seq[:10]}")
 
-    write_fasta(sample_names, sample_sequences, fasta)
+    write_fasta(
+        [name for name, _ in fasta_entries],
+        [seq for _, seq in fasta_entries],
+        fasta
+    )
 
     if debug:
         for sample_name, variants_map in samples_map.items():

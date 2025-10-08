@@ -1,0 +1,14 @@
+##fileformat=VCFv4.3
+##FILTER=<ID=PASS,Description="All filters passed">
+##INFO=<ID=NS,Number=1,Type=Integer,Description="Number of Samples With Data">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##contig=<ID=chr1,eta=0.3957790036960765>
+##contig=<ID=chr2,eta=0.4>
+##reference=file:./data/twoSeqRef.fna
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	0	1	2	3
+chr1	15	.	G	T	63	.	NS=1	GT	./.	./.	./.	0/1
+chr1	50	.	A	C	37	.	NS=1	GT	./.	./.	./.	0/1
+chr1	71	.	A	T	91	.	NS=1	GT	./.	1/1	./.	1/1
+chr2	21	.	G	T	63	.	NS=1	GT	./.	./.	./.	0/1
+chr2	44	.	A	C	37	.	NS=1	GT	./.	./.	./.	0/1
+chr2	88	.	A	T	91	.	NS=1	GT	./.	1/1	./.	1/1
