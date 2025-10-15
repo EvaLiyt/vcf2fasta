@@ -1,7 +1,7 @@
 import pytest
 import itertools
 from contextlib import contextmanager
-from vcf2fasta import translate_genome
+from src.vcf2fasta import translate_genome
 #from vcf2fasta import translate_alleles
 
 
@@ -65,15 +65,15 @@ def does_not_raise():
     yield
 
 
-# @pytest.mark.parametrize("genome, expectation", [
-#     ("A", pytest.raises(ValueError)),
-#     ("AA", does_not_raise()),
-#     ("AAA", pytest.raises(ValueError))
-#     ])
-# def test_translate_genome_length(genome, expectation):
-#     with expectation:
-#         assert translate_genome(genome) is not None
-#
+@pytest.mark.parametrize("genome, expectation", [
+    ("A", does_not_raise()),
+    ("AA", does_not_raise()),
+    ("AAA", pytest.raises(ValueError))
+    ])
+def test_translate_genome_length(genome, expectation):
+    with expectation:
+        assert translate_genome(genome) is not None
+
 
 #@pytest.mark.parametrize("alleles, expected", [
 #    (("A", "A"), "0"),

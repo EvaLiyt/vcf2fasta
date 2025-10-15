@@ -1,0 +1,4 @@
+pylint
+ruff
+mypy
+pytest

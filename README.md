@@ -1,8 +1,17 @@
 # VCF to Nexus or FASTA 
 Convert VCF files into nexus or fasta formats for use with the BEAST phylonco package https://github.com/bioDS/beast-phylonco
 
-## Requirements:
-Python 3 with the `pysam` package. This can be installed with `python3 -m pip install pysam`.
+## Requirements
+The following tools are required for this project:
+
+- **Python 3** – can be installed through [Homebrew](https://brew.sh/) on Linux/macOS, or through [Chocolatey](https://chocolatey.org/) on Windows.
+
+- **Make** – already available on most Linux distributions, macOS and Windows users may need to install it with the package manager introduced. In the following instructions, Mac users should use `gmake` instead of `make`.
+
+## Installation:
+1. Clone the repository with `git clone https://github.com/bioDS/vcf2fasta.git` to the workspace.
+
+2. Navigate to the directory and run `make venv` and `make install`. Then required package `pysam` can be automatically installed and ready to use.
  
 ## Example VCF files
 Example VCF files can be downloaded from https://github.com/amkozlov/cellphy-paper/blob/main/data/

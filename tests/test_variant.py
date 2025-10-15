@@ -1,8 +1,8 @@
 import pysam
 import pytest
-from vcf2fasta import sample2base
-from vcf2fasta import variant2bases
-from vcf2fasta import get_sequences
+from src.vcf2fasta import sample2base
+from src.vcf2fasta import variant2bases
+from src.vcf2fasta import get_sequences
 
 
 @pytest.fixture
