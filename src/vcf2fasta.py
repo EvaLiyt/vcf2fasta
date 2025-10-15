@@ -314,8 +314,8 @@ def sample2base(sample, encoding="nd16"):
 
 def translate_genome(genome, encoding="nd16", phased=True):
     genome = genome.upper()
-    # if len(genome) != 2:
-    #     raise ValueError(f"Genome must be diploid. The ploidy is: {len(genome)}")
+    if len(genome) not in [1,2]:
+        raise ValueError(f"Genome must be diploid. The ploidy is: {len(genome)}")
     if encoding == "binary":
         return binary[genome]
     if encoding == "nd16" and phased:
