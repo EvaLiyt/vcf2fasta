@@ -97,7 +97,6 @@ def check_sequences(sequences, expect_num, expect_length):
         assert len(seq) == expect_length
 
 
-
 def test_vcf2fasta_single_ref(tmp_path):
     """
     Test vcf2fasta() for single reference sequence and verify sequence translation.
@@ -135,6 +134,10 @@ def test_vcf2fasta_multiple_refs(tmp_path):
         ("3", "chr2"): {87: "f"},
     }
 
+    def check_genotype_at_position(seq, position, expected_base):
+        actual = seq[position]
+        assert actual == expected_base
+
     for seq_name, seq in sequences.items():
         parts = seq_name.split("_")
 
@@ -146,4 +149,4 @@ def test_vcf2fasta_multiple_refs(tmp_path):
 
         if key in expected_positions:
             for pos, base in expected_positions[key].items():
-                assert seq[pos] == base, f"{seq_name}: expected '{base}' at position {pos + 1}"
+                check_genotype_at_position(seq, pos, base)
