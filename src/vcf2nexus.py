@@ -1,7 +1,6 @@
 #'/usr/bin/env python3
 """Parse a multi-sample VCF file and produce a Nexus file."""
 
-import textwrap
 import argparse
 import pysam
 

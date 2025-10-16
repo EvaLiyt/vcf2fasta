@@ -9,7 +9,6 @@ ifeq ($(PYTHON_SYSTEM),)
 $(error "No Python found. Please install Python 3.")
 endif
 
-# Path to virtualenv Python
 PYTHON := venv/bin/python3
 PY = src tests
 
@@ -38,7 +37,7 @@ lint: .install
 
 .PHONY: check
 check: .install
-+ $(PYTHON) -m mypy $(PY)
++ $(PYTHON) -m mypy --explicit-package-bases $(PY)
 
 .PHONY: test
 test: .install

@@ -1,7 +1,6 @@
 import pytest
 from src.vcf2fasta import parse_fasta, translate_fasta, translate_vcf, vcf2fasta
 
-
 @pytest.mark.parametrize(
     "fasta_content,expected",
     [
@@ -21,10 +20,10 @@ def test_parse_fasta(tmp_path, fasta_content, expected):
     "fasta_content,should_raise",
     [
         (">seq1\nACGT\n>seq1\nACGT\n", False),
-        (">seq1\nACGT\n>seq1\nGGTA\n", True), #
+        (">seq1\nACGT\n>seq1\nGGTA\n", True),
     ]
 )
-def test_parse_fasta(tmp_path, fasta_content, should_raise):
+def test_parse_fasta_identical_names(tmp_path, fasta_content, should_raise):
     """
     Test parsing a fasta files with identical chromosome names.
     - allow identical chromosome with same sequences, will return one sequence for each chromosome
