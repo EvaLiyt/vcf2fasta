@@ -3,8 +3,6 @@
 import os
 import argparse
 import pysam
-import random
-import logging
 
 nd16phased = {
     "AA": "0",
@@ -85,30 +83,6 @@ binary = {
     "..": "?"
 }
 
-def setup_logger(debug=False, output_path=None):
-    logger = logging.getLogger("my_parser")
-    logger.setLevel(logging.DEBUG)
-
-    if logger.hasHandlers():
-        logger.handlers.clear()
-
-    # Console handler – show only INFO or higher
-    ch = logging.StreamHandler()
-    ch.setLevel(logging.INFO)
-    formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-    ch.setFormatter(formatter)
-    logger.addHandler(ch)
-
-    if debug and output_path:
-        log_file = output_path + ".log"
-        fh = logging.FileHandler(log_file, mode="w")
-        fh.setLevel(logging.DEBUG)
-        fh.setFormatter(formatter)
-        logger.addHandler(fh)
-        logger.debug(f"Debug logging enabled. Writing to file: {log_file}")
-
-    return logger
-
 
 def parse_args():
     parser = argparse.ArgumentParser("Transform a multi-sample VCF file into a Fasta format")
@@ -125,7 +99,7 @@ def parse_args():
     parser.add_argument("--ref", type=str,
                         help="A reference Fasta file to fill in genotypes not present in the VCF",
                         default="none")
-    parser.add_argument("--refType", type=str,
+    parser.add_argument("--ref_type", type=str,
                         choices=["nd16", "nucleotide","binary"],
                         help="The sequence type of reference Fasta file. Supports 'nd16' and 'nucleotide' (default).",
                         default="nucleotide")
@@ -136,12 +110,12 @@ def parse_args():
     return args
 
 
-def vcf2fasta(vcf, fasta, encoding="nd16", ref="none", refType="nucleotide", debug=False):
+def vcf2fasta(vcf, fasta, encoding="nd16", ref="none", ref_type="nucleotide", debug=False):
     if ref.lower() == "none":
         names, sequences = parse_vcf(vcf, encoding)
         write_fasta(names, sequences, fasta)
     else:
-        parse_vcf_ref(vcf, fasta, encoding, ref, refType, debug)
+        parse_vcf_ref(vcf, fasta, encoding, ref, ref_type, debug)
 
 
 def write_fasta(names, sequences, file):
@@ -221,11 +195,11 @@ def translate_vcf(vcf_file, encoding):
     return samples_map
 
 
-def parse_vcf_ref(vcf, fasta, encoding, ref, refType, debug=False):
+def parse_vcf_ref(vcf, fasta, encoding, ref, ref_type, debug=False):
     ref_dict = parse_fasta(ref)
 
     translated_ref_dict = {
-        chrom: translate_fasta(seq, refType, encoding)
+        chrom: translate_fasta(seq, ref_type, encoding)
         for chrom, seq in ref_dict.items()
     }
 
@@ -249,39 +223,12 @@ def parse_vcf_ref(vcf, fasta, encoding, ref, refType, debug=False):
             final_seq = "".join(seq_list)
             fasta_entries.append((f"{sample_name}_{chrom}", final_seq))
 
-            if debug:
-                logger.debug(f"{sample_name}_{chrom} -> first 10 bases: {final_seq[:10]}")
 
     write_fasta(
         [name for name, _ in fasta_entries],
         [seq for _, seq in fasta_entries],
         fasta
     )
-
-    if debug:
-        for sample_name, variants_map in samples_map.items():
-            # Build chromosome sequence for this sample
-            chrom_seq = list(translated_ref_dict[chrom])
-            for variant_pos, base in variants_map.items():
-                chrom_v, pos_v = variant_pos.split(",")
-                pos_v = int(pos_v) - 1
-                if chrom_v == chrom:
-                    chrom_seq[pos_v] = base
-            sequence_str = "".join(chrom_seq)
-
-            # Random position debug
-            random_index = random.randint(0, len(chrom_seq) - 1)
-            vcf_pos = random_index + 1
-            vcf_key = f"{chrom},{vcf_pos}"
-            vcf_base = variants_map.get(vcf_key)
-            ref_base = translated_ref_dict[chrom][random_index]
-            sample_base = chrom_seq[random_index]
-
-            logger.debug(f"DEBUG SAMPLE for {sample_name}_{chrom}")
-            logger.debug(f"Random position: {vcf_pos} (VCF 1-based) / {random_index} (Python 0-based)")
-            logger.debug(f"Ref base: {ref_base}, output seq base: {sample_base}, vcf base: {vcf_base}")
-            logger.debug(f"Ref seq start: {''.join(translated_ref_dict[chrom][:10])}")
-            logger.debug(f"Sample seq start: {sequence_str[:10]}")
 
 
 def get_sequences(variants, encoding="nd16"):
@@ -329,12 +276,6 @@ def translate_genome(genome, encoding="nd16", phased=True):
 
 if __name__ == "__main__":
     args = parse_args()
-    debug_mode = args.debug
-    logger = setup_logger(debug=debug_mode, output_path=args.fasta)
-    if debug_mode:
-        log_file = args.fasta + ".log"
-        print(f"Debug logging enabled. Writing to file: {log_file}")
-
     vcf2fasta(**vars(args))
 
 # file = "../data/1459.vcf"
