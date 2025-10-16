@@ -12,6 +12,21 @@ from src.vcf2fasta import parse_fasta, translate_fasta, translate_vcf, vcf2fasta
 def test_parse_fasta(tmp_path, fasta_content, expected):
     fasta_file = tmp_path / "test.fasta"
     fasta_file.write_text(fasta_content)
+
+    result = parse_fasta(str(fasta_file))
+    assert result == expected
+
+
+@pytest.mark.parametrize(
+    "fasta_content,expected",
+    [
+        (">seq1\nACGT\nACGT\n>seq2\nGGTA\nACGT\n", {"seq1": "ACGTACGT", "seq2": "GGTAACGT"})
+    ]
+)
+def test_parse_fasta_multiple_lines_sequence(tmp_path, fasta_content, expected):
+    fasta_file = tmp_path / "test.fasta"
+    fasta_file.write_text(fasta_content)
+
     result = parse_fasta(str(fasta_file))
     assert result == expected
 
@@ -42,12 +57,32 @@ def test_parse_fasta_identical_names(tmp_path, fasta_content, should_raise):
             parse_fasta(str(fasta_file))
     else:
         result = parse_fasta(str(fasta_file))
-        # just check one sequence
         assert list(result.values())[0] in ["ACGT"]
 
-def test_parse_fasta_no_file():
-    with pytest.raises(FileNotFoundError):
-        parse_fasta("notExisting.fasta")
+
+@pytest.mark.parametrize(
+    "fasta_path,error",
+    [
+        ("notExisting.fasta", FileNotFoundError),
+    ]
+)
+def test_parse_fasta_no_file(fasta_path, error):
+    with pytest.raises(error):
+        parse_fasta(fasta_path)
+
+
+@pytest.mark.parametrize(
+    "fasta_content,error",
+    [
+        ("", FileNotFoundError),
+    ]
+)
+def test_parse_fasta_no_seq(tmp_path, fasta_content, error):
+    fasta_file = tmp_path / "test.fasta"
+    fasta_file.write_text(fasta_content)
+
+    with pytest.raises(error):
+        parse_fasta(str(fasta_file))
 
 
 @pytest.mark.parametrize(
