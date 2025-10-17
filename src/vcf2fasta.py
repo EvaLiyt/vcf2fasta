@@ -2,6 +2,8 @@
 """Parse a multi-sample VCF file and produce a FASTA file."""
 import argparse
 import textwrap
+from typing import Tuple, List, Dict, Optional
+
 import pysam
 
 nd16phased = {
@@ -84,7 +86,7 @@ binary = {
 }
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser("Transform a multi-sample VCF file into a Fasta format")
     parser.add_argument("vcf", type=str, help="A multi-sample VCF file")
     parser.add_argument("fasta", type=str, help="A path to an output fasta file")
@@ -107,7 +109,8 @@ def parse_args():
                         default="none")
     parser.add_argument("--ref_type", type=str,
                         choices=["nucleotide", "nd16"],
-                        help="The sequence type of reference Fasta file. Supports 'nd16' and 'nucleotide' (default).",
+                        help="The sequence type of reference Fasta file. "
+                             "Supports 'nd16' and 'nucleotide' (default).",
                         default="nucleotide")
     parser.add_argument("--debug", action="store_true",
                         help="Debug mode (default: off)")
@@ -115,7 +118,21 @@ def parse_args():
     return args
 
 
-def vcf2fasta(vcf, fasta, readable = False, encoding="nd16", ref="none", ref_type="nucleotide", debug=False):
+def vcf2fasta(vcf, fasta, readable = False, encoding="nd16", ref="none",
+              ref_type="nucleotide", debug=False) -> None:
+    """
+    The main function of vcf2fasta. If reference is given,
+    then map the full-length sequence in fasta file.
+    Otherwise, the fasta file only contains variable sites.
+    :param vcf:
+    :param fasta:
+    :param readable:
+    :param encoding:
+    :param ref:
+    :param ref_type:
+    :param debug:
+    :return:
+    """
     if ref.lower() == "none":
         names, sequences = parse_vcf(vcf, encoding)
         write_fasta(names, sequences, fasta, readable)
@@ -123,7 +140,16 @@ def vcf2fasta(vcf, fasta, readable = False, encoding="nd16", ref="none", ref_typ
         parse_vcf_ref(vcf, fasta, encoding, ref, ref_type, debug)
 
 
-def write_fasta(names, sequences, file, readable=False):
+def write_fasta(names, sequences, file, readable=False) -> None:
+    """
+    Write fasta file, default generating a sequence per line for bioinformatic tools reading.
+    When readable flag is on, wrap fasta file 80 characters per line for editors and human reading.
+    :param names:
+    :param sequences:
+    :param file:
+    :param readable:
+    :return:
+    """
     if readable:
         items = [
             "\n".join([">" + name, textwrap.fill(seq, width=80)])
@@ -140,22 +166,28 @@ def write_fasta(names, sequences, file, readable=False):
         fasta.write("\n")
 
 
-def parse_vcf(file, encoding):
+def parse_vcf(file, encoding) -> Tuple[List[str], List[str]]:
+    """
+    Parse the vcf file and return the sample names and sequences representing variable sites.
+    :param file:
+    :param encoding:
+    :return:
+    """
     with pysam.VariantFile(file) as vcf:
         names = list(vcf.header.samples)
         sequences = get_sequences(vcf.fetch(), encoding)
     return names, sequences
 
 
-def read_fasta(fasta_path):
+def read_fasta(fasta_path: str) -> List[Tuple[str, str]]:
     """
     Read a fasta file and return a list of sequences.
     Allow a single sequences for multiple lines.
     Raises error when file does not exist or empty.
     """
-    sequences = []
-    seq_id = None
-    seq_lines = []
+    sequences: List[Tuple[str, str]] = []
+    seq_id: Optional[str] = None
+    seq_lines: List[str] = []
 
     with open(fasta_path, "r") as f:
         for line in f:
@@ -179,14 +211,14 @@ def read_fasta(fasta_path):
     return sequences
 
 
-def validate_sequences(seq_list):
+def validate_sequences(seq_list: List[Tuple[str, str]]) -> Dict[str, str]:
     """
     Validate sequences: join lines into full sequence
     Allow identical chromosome names
     - extract one sequence when sequences are the same,
     - raise error when sequences are not the same.
     """
-    validated = {}
+    validated: Dict[str, str] = {}
     for seq_id, seq in seq_list:
         if seq_id in validated:
             if validated[seq_id] != seq:
@@ -196,24 +228,44 @@ def validate_sequences(seq_list):
     return validated
 
 
-def parse_fasta(fasta_path):
+def parse_fasta(fasta_path: str) -> Dict[str, str]:
+    """
+    Read and validate the pass in fasta file, return a list of reference sequences.
+    :param fasta_path:
+    :return:
+    """
     seq = read_fasta(fasta_path)
     ref_seq = validate_sequences(seq)
     return ref_seq
 
 
-def translate_fasta(seq, ref_type, encoding):
+def translate_fasta(seq: str, ref_type: str, encoding: str) -> str:
+    """
+    Translate reference sequence into encoded type.
+    :param seq:
+    :param ref_type:
+    :param encoding:
+    :return:
+    """
     if ref_type == "nd16":
         return seq
 
-    translated_seq = [translate_genome(allele, encoding) for allele in seq]
-    translated_seq = "".join(translated_seq)
+    translated_list: List[str] = [translate_genome(allele, encoding) for allele in seq]
+    translated_seq: str = "".join(translated_list)
 
     return translated_seq
 
-def translate_vcf(vcf_file, encoding):
+
+def translate_vcf(vcf_file, encoding) -> Dict[str, Dict[str, str]]:
+    """
+    Translate variants in vcf file into encoded type,
+    store the chrom name, sample name, positions in the sample map.
+    :param vcf_file:
+    :param encoding:
+    :return:
+    """
     with pysam.VariantFile(vcf_file) as vcf:
-        samples_map = {}
+        samples_map: Dict[str, Dict[str, str]] = {}
         for variant in vcf.fetch():
             chrom = variant.chrom  # store chromosome in pos_key
             for sample in variant.samples.values():
@@ -226,7 +278,19 @@ def translate_vcf(vcf_file, encoding):
     return samples_map
 
 
-def parse_vcf_ref(vcf, fasta, encoding, ref, ref_type, debug=False, readable=False):
+def parse_vcf_ref(vcf, fasta, encoding, ref, ref_type, debug=False, readable=False) -> None:
+    """
+    Read and translate variant genotype in vcf file and reference sequences.
+    Map the missing sites in vcf with reference bases.
+    :param vcf:
+    :param fasta:
+    :param encoding:
+    :param ref:
+    :param ref_type:
+    :param debug:
+    :param readable:
+    :return: output fasta file
+    """
     ref_dict = parse_fasta(ref)
 
     translated_ref_dict = {
@@ -236,8 +300,25 @@ def parse_vcf_ref(vcf, fasta, encoding, ref, ref_type, debug=False, readable=Fal
 
     samples_map = translate_vcf(vcf, encoding)
 
-    fasta_entries = []
+    fasta_entries = map_ref_sites(samples_map, translated_ref_dict)
 
+    write_fasta(
+        [name for name, _ in fasta_entries],
+        [seq for _, seq in fasta_entries],
+        fasta,
+        readable
+    )
+
+
+def map_ref_sites(samples_map: Dict[str, Dict[str, str]],
+                  translated_ref_dict: Dict[str, str]) -> List[Tuple[str, str]]:
+    """
+    Map the missing sites in vcf with reference bases.
+    :param samples_map:
+    :param translated_ref_dict:
+    :return:
+    """
+    fasta_entries: List[Tuple[str, str]] = []
     for sample_name, variants in samples_map.items():
         for chrom, ref_seq in translated_ref_dict.items():
             seq_list = list(ref_seq)
@@ -247,36 +328,55 @@ def parse_vcf_ref(vcf, fasta, encoding, ref, ref_type, debug=False, readable=Fal
                 chrom_v, pos = pos_key.split(",")
                 if chrom_v != chrom:
                     continue
-                pos = int(pos) - 1  # VCF positions are 1-based
-                if 0 <= pos < len(seq_list):
-                    seq_list[pos] = base
+                idx: int = int(pos) - 1  # VCF positions are 1-based
+                if 0 <= idx < len(seq_list):
+                    seq_list[idx] = base
 
             final_seq = "".join(seq_list)
             fasta_entries.append((f"{sample_name}_{chrom}", final_seq))
+    return fasta_entries
 
 
-    write_fasta(
-        [name for name, _ in fasta_entries],
-        [seq for _, seq in fasta_entries],
-        fasta, readable)
+def get_sequences(variants, encoding="nd16") -> List[str]:
+    """
+    Return list of sequences representing the variable sites.
+    :param variants: variants from vcf file
+    :param encoding:
+    :return: a list of sequences corresponding to each sample
+    """
+    sequences_row: List[List[str]] = [variant2bases(variant, encoding) for variant in variants]
+    sequences_column = transpose_list(sequences_row)
+    sequences: List[str] = ["".join(seq) for seq in sequences_column]
+    return sequences
 
 
-def get_sequences(variants, encoding="nd16"):
-    sequences = [variant2bases(variant, encoding) for variant in variants]
-    sequences = transpose_list(sequences)
-    sequences = map("".join, sequences)
-    return list(sequences)
-
-
-def transpose_list(lst):
+def transpose_list(lst: List[List[str]]) -> List[List[str]]:
+    """
+    Reconstruct the lists by columns (original rows)
+    :param lst: a list of lists, each element represents a vcf row
+    :return: a list of lists, each element represents a vcf column (each sample)
+    """
     return list(map(list, zip(*lst)))
 
 
-def variant2bases(variant, encoding="nd16"):
-    return [sample2base(sample, encoding) for sample in variant.samples.itervalues()]
+def variant2bases(variant, encoding="nd16") -> List[str]:
+    """
+    Convert all variants genotype to encoded bases.
+    :param variant:
+    :param encoding:
+    :return:
+    """
+    bases = [sample2base(sample, encoding) for sample in variant.samples.values()]
+    return bases
 
 
-def sample2base(sample, encoding="nd16"):
+def sample2base(sample, encoding="nd16") -> str:
+    """
+    Convert a single sample's genotype to the encoded type
+    :param sample:
+    :param encoding:
+    :return:
+    """
     if encoding == "binary":
         alleles = [
             1 if allele is not None and allele > 1 else allele
@@ -284,12 +384,21 @@ def sample2base(sample, encoding="nd16"):
         ]
     else:
         alleles = sample.alleles
-    genome = ["." if allele is None else str(allele) for allele in alleles]
-    genome = "".join(genome)
-    return translate_genome(genome, encoding, sample.phased)
+    genome_list = ["." if allele is None else str(allele) for allele in alleles]
+    genome: str = "".join(genome_list)
+
+    translated_genome = translate_genome(genome, encoding, sample.phased)
+    return translated_genome
 
 
-def translate_genome(genome, encoding="nd16", phased=True):
+def translate_genome(genome, encoding="nd16", phased=True) -> str:
+    """
+    Translate a genome sequence into encoded type.
+    :param genome:
+    :param encoding:
+    :param phased:
+    :return:
+    """
     genome = genome.upper()
     if len(genome) not in [1,2]:
         raise ValueError(f"Genome must be diploid. The ploidy is: {len(genome)}")
@@ -307,9 +416,3 @@ def translate_genome(genome, encoding="nd16", phased=True):
 if __name__ == "__main__":
     args = parse_args()
     vcf2fasta(**vars(args))
-
-# file = "../data/1459.vcf"
-# fasta = file.replace(".vcf", ".fasta")
-# encoding = "nd16"
-# ref = "../data/filtered_sequence.fna"
-# parse_vcf_ref(file, fasta, encoding, ref)

@@ -139,7 +139,7 @@ def test_vcf2fasta_single_ref(tmp_path):
     vcf_file = "./data/example.vcf"
     out_file = tmp_path /"out.fasta"
 
-    vcf2fasta(vcf_file, out_file, encoding="nd16", ref=fasta_file, refType="nd16", debug=False)
+    vcf2fasta(vcf_file, out_file, encoding="nd16", ref=fasta_file, ref_type="nd16", debug=False)
 
     sequences = parse_fasta(out_file)
     check_sequences(sequences, 4, 100)
