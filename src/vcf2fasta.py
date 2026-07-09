@@ -108,9 +108,9 @@ def parse_args() -> argparse.Namespace:
                         help="A reference Fasta file to fill in genotypes not present in the VCF",
                         default="none")
     parser.add_argument("--ref_type", type=str,
-                        choices=["nucleotide", "nd16"],
+                        choices=["nucleotide", "nd16", "gt10"],
                         help="The sequence type of reference Fasta file. "
-                             "Supports 'nd16' and 'nucleotide' (default).",
+                             "Supports 'nd16', 'gt10' and 'nucleotide' (default).",
                         default="nucleotide")
     parser.add_argument("--debug", action="store_true",
                         help="Debug mode (default: off)")
@@ -247,7 +247,7 @@ def translate_fasta(seq: str, ref_type: str, encoding: str) -> str:
     :param encoding:
     :return:
     """
-    if ref_type == "nd16":
+    if ref_type in ("nd16", "gt10"):
         return seq
 
     translated_list: List[str] = [translate_genome(allele, encoding) for allele in seq]
