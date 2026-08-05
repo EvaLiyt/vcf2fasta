@@ -107,7 +107,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--ref", type=str,
                         help="A reference Fasta file to fill in genotypes not present in the VCF",
                         default="none")
-    parser.add_argument("--ref_type", type=str,
+    parser.add_argument("--refType", type=str,
                         choices=["nucleotide", "nd16", "nd10"],
                         help="The sequence type of reference Fasta file. "
                              "Supports 'nd16', 'nd10' and 'nucleotide' (default).",
@@ -119,7 +119,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def vcf2fasta(vcf, fasta, readable = False, encoding="nd16", ref="none",
-              ref_type="nucleotide", debug=False) -> None:
+              refType="nucleotide", debug=False) -> None:
     """
     The main function of vcf2fasta. If reference is given,
     then map the full-length sequence in fasta file.
@@ -129,7 +129,7 @@ def vcf2fasta(vcf, fasta, readable = False, encoding="nd16", ref="none",
     :param readable:
     :param encoding:
     :param ref:
-    :param ref_type:
+    :param refType:
     :param debug:
     :return:
     """
@@ -137,7 +137,7 @@ def vcf2fasta(vcf, fasta, readable = False, encoding="nd16", ref="none",
         names, sequences = parse_vcf(vcf, encoding)
         write_fasta(names, sequences, fasta, readable)
     else:
-        parse_vcf_ref(vcf, fasta, encoding, ref, ref_type, debug)
+        parse_vcf_ref(vcf, fasta, encoding, ref, refType, debug)
 
 
 def write_fasta(names, sequences, file, readable=False) -> None:
@@ -239,15 +239,15 @@ def parse_fasta(fasta_path: str) -> Dict[str, str]:
     return ref_seq
 
 
-def translate_fasta(seq: str, ref_type: str, encoding: str) -> str:
+def translate_fasta(seq: str, refType: str, encoding: str) -> str:
     """
     Translate reference sequence into encoded type.
     :param seq:
-    :param ref_type:
+    :param refType:
     :param encoding:
     :return:
     """
-    if ref_type in ("nd16", "nd10"):
+    if refType in ("nd16", "nd10"):
         return seq
 
     translated_list: List[str] = [translate_genome(allele, encoding) for allele in seq]
@@ -278,7 +278,7 @@ def translate_vcf(vcf_file, encoding) -> Dict[str, Dict[str, str]]:
     return samples_map
 
 
-def parse_vcf_ref(vcf, fasta, encoding, ref, ref_type, debug=False, readable=False) -> None:
+def parse_vcf_ref(vcf, fasta, encoding, ref, refType, debug=False, readable=False) -> None:
     """
     Read and translate variant genotype in vcf file and reference sequences.
     Map the missing sites in vcf with reference bases.
@@ -286,7 +286,7 @@ def parse_vcf_ref(vcf, fasta, encoding, ref, ref_type, debug=False, readable=Fal
     :param fasta:
     :param encoding:
     :param ref:
-    :param ref_type:
+    :param refType:
     :param debug:
     :param readable:
     :return: output fasta file
@@ -294,7 +294,7 @@ def parse_vcf_ref(vcf, fasta, encoding, ref, ref_type, debug=False, readable=Fal
     ref_dict = parse_fasta(ref)
 
     translated_ref_dict = {
-        chrom: translate_fasta(seq, ref_type, encoding)
+        chrom: translate_fasta(seq, refType, encoding)
         for chrom, seq in ref_dict.items()
     }
 
