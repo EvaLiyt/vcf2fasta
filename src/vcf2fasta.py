@@ -73,6 +73,60 @@ nd16unphased = {
     "T": "f"
 }
 
+nd10 = {
+    "AA": "A",
+    "CC": "C",
+    "GG": "G",
+    "TT": "T",
+    "AC": "M",
+    "CA": "M",
+    "AG": "R",
+    "GA": "R",
+    "AT": "W",
+    "TA": "W",
+    "CG": "S",
+    "GC": "S",
+    "CT": "Y",
+    "TC": "Y",
+    "GT": "K",
+    "TG": "K",
+    "..": "?",
+    # haploid states are homozygous genotypes
+    "a": "A",
+    "A": "A",
+    "c": "C",
+    "C": "C",
+    "g": "G",
+    "G": "G",
+    "t": "T",
+    "T": "T"
+}
+
+# Collapse the 16 phased nd16 states onto the 10 unphased nd10 states.
+# Partially missing nd16 states (g-q) have no nd10 equivalent and become "?".
+nd16_to_nd10 = {
+    "0": "A",
+    "5": "C",
+    "a": "G",
+    "f": "T",
+    "1": "M", "4": "M",
+    "2": "R", "8": "R",
+    "3": "W", "c": "W",
+    "6": "S", "9": "S",
+    "7": "Y", "d": "Y",
+    "b": "K", "e": "K",
+    "g": "?", "h": "?", "i": "?", "j": "?",
+    "n": "?", "o": "?", "p": "?", "q": "?",
+    "?": "?",
+    # nd16 unphased input already uses the nd10 ambiguity codes
+    "M": "M",
+    "R": "R",
+    "W": "W",
+    "S": "S",
+    "Y": "Y",
+    "K": "K"
+}
+
 binary = {
     "00": "0",
     "11": "1",
@@ -96,13 +150,15 @@ def parse_args() -> argparse.Namespace:
                         When flag is on, wrap fasta file 80 characters per line. Suits human and some editors reading.
                         Default off, no breaks within a single sequence for bioinformatic tools reading.
                         """)
-    parser.add_argument("--encoding", type=str, choices=["nd16", "binary"], default="nd16",
+    parser.add_argument("--encoding", type=str, choices=["nd16", "nd10", "binary"], default="nd16",
                         help="""
     A type of encoding used during to translate a diploid variant into a single character.
     Currently available encodings are:
         binary         - reference allele is 0 and any non-reference allele is mutation encoded as 1
         nd16 (default) - full nucleotide diploid model, available in phased and unphased form which
                          is chosen based on the phasing of the VCF file.
+        nd10           - unphased nucleotide diploid model over the IUPAC alphabet ACGTMRWSYK,
+                         phase is ignored.
     """)
     parser.add_argument("--ref", type=str,
                         help="A reference Fasta file to fill in genotypes not present in the VCF",
@@ -247,8 +303,17 @@ def translate_fasta(seq: str, refType: str, encoding: str) -> str:
     :param encoding:
     :return:
     """
-    if refType in ("nd16", "nd10"):
+    if refType == encoding:
         return seq
+
+    if refType == "nd10":
+        # nd10 has no phase information, so it cannot be expanded into nd16.
+        raise ValueError(f"An nd10 reference cannot be translated into \"{encoding}\".")
+
+    if refType == "nd16":
+        if encoding != "nd10":
+            raise ValueError(f"An nd16 reference cannot be translated into \"{encoding}\".")
+        return "".join(nd16_to_nd10[allele] for allele in seq)
 
     translated_list: List[str] = [translate_genome(allele, encoding) for allele in seq]
     translated_seq: str = "".join(translated_list)
@@ -404,6 +469,8 @@ def translate_genome(genome, encoding="nd16", phased=True) -> str:
         raise ValueError(f"Genome must be diploid. The ploidy is: {len(genome)}")
     if encoding == "binary":
         return binary[genome]
+    if encoding == "nd10":
+        return nd10[genome]
     if encoding == "nd16" and phased:
         return nd16phased[genome]
     if encoding == "nd16" and not phased:
